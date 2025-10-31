@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 // src/user/user.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
-import { CreateUserDto } from './dto/create-user.dto';
+import { CreateUserDto } from '../../auth/dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
@@ -13,23 +15,37 @@ export class UserService {
     private readonly userRepo: Repository<User>,
   ) {}
 
-  // Create a new user
-  async create(createUserDto: CreateUserDto): Promise<User> {
-    const user = this.userRepo.create(createUserDto);
-    return await this.userRepo.save(user);
-  }
-
   // Get all users
   async findAll(): Promise<User[]> {
     return await this.userRepo.find();
   }
 
-  // Get one user by UUID
+  // Get all users WITH profile
+  async findAllWithProfile(): Promise<User[]> {
+    return await this.userRepo.find({
+      relations: ['profile'], // load profile
+    });
+  }
+  // Get one user by UUID (without profile)
   async findOne(id: string): Promise<User> {
     const user = await this.userRepo.findOneBy({ id });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
+    return user;
+  }
+
+  // Get one user by UUID WITH profile
+  async findOneWithProfile(id: string): Promise<User> {
+    const user = await this.userRepo.findOne({
+      where: { id },
+      relations: ['profile'], // load profile
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
     return user;
   }
 

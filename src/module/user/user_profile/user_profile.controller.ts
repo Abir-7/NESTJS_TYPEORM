@@ -7,19 +7,16 @@ import { ParseUUIDPipe } from '@nestjs/common';
 export class UserProfileController {
   constructor(private readonly userProfileService: UserProfileService) {}
 
-  // Get all profiles
   @Get()
   findAll() {
     return this.userProfileService.findAll();
   }
 
-  // Get a single profile by UUID
   @Get(':id')
   findOne(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.userProfileService.findOne(id);
   }
 
-  // Update a profile by UUID
   @Patch(':id')
   update(
     @Param('id', new ParseUUIDPipe()) id: string,

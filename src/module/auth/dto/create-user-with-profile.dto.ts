@@ -1,9 +1,8 @@
-import { IsOptional, IsString, IsUUID, IsDateString } from 'class-validator';
+import { CreateUserDto } from './create-user.dto';
+import { IsOptional, IsString, IsDateString } from 'class-validator';
 
-export class CreateUserProfileDto {
-  @IsUUID()
-  user_id: string;
-
+export class CreateUserWithProfileDto extends CreateUserDto {
+  // Profile fields
   @IsOptional()
   @IsString()
   first_name?: string;
@@ -41,6 +40,6 @@ export class CreateUserProfileDto {
   zip_code?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsDateString({}, { message: 'date_of_birth must be a valid date string' })
   date_of_birth?: string;
 }

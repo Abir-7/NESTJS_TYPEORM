@@ -11,12 +11,10 @@ export class UserProfileService {
     private readonly userProfileRepository: Repository<UserProfile>,
   ) {}
 
-  // Get all profiles
   async findAll(): Promise<UserProfile[]> {
     return await this.userProfileRepository.find({ relations: ['user'] });
   }
 
-  // Get single profile by UUID
   async findOne(id: string): Promise<UserProfile> {
     const profile = await this.userProfileRepository.findOne({
       where: { id },
@@ -28,7 +26,6 @@ export class UserProfileService {
     return profile;
   }
 
-  // Update profile by UUID
   async update(
     id: string,
     updateUserProfileDto: UpdateUserProfileDto,

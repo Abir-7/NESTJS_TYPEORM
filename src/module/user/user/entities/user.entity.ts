@@ -1,4 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToOne,
+  OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { UserProfile } from '../../user_profile/entities/user_profile.entity';
+import { UserAuthentication } from '../../user_authentication/entities/user_authentication.entity';
 
 export enum AccountStatus {
   DELETED = 'deleted',
@@ -32,7 +42,7 @@ export class User {
   role: UserRole;
 
   @Column({ default: false, name: 'is_profile_updated' })
-  isProfileUpdated: boolean;
+  is_profile_updated: boolean;
 
   @Column({
     type: 'enum',
@@ -40,8 +50,27 @@ export class User {
     default: AccountStatus.PENDING_VERIFICATION,
     name: 'account_status',
   })
-  accountStatus: AccountStatus;
+  account_status: AccountStatus;
 
   @Column({ default: false, name: 'is_verified' })
-  isVerified: boolean;
+  is_verified: boolean;
+
+  // @OneToOne(() => UserProfile, (profile) => profile.user, {
+  //   cascade: true,
+  //   eager: true,
+  // })
+  // profile: UserProfile;
+
+  @OneToOne(() => UserProfile, (profile) => profile.user)
+  profile: UserProfile;
+  @OneToMany(() => UserAuthentication, (auth) => auth.user)
+  authentications: UserAuthentication[];
+
+  // Automatically set when the record is created
+  @CreateDateColumn({ name: 'created_at' })
+  created_at: Date;
+
+  // Automatically set when the record is updated
+  @UpdateDateColumn({ name: 'updated_at' })
+  updated_at: Date;
 }
