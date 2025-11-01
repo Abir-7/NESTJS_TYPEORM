@@ -23,6 +23,16 @@ export class UserService {
   // Get all users WITH profile
   async findAllWithProfile(): Promise<User[]> {
     return await this.userRepo.find({
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        account_status: true,
+        is_verified: true,
+        is_profile_updated: true,
+        profile: true,
+        // don't include password
+      },
       relations: ['profile'], // load profile
     });
   }
@@ -34,6 +44,7 @@ export class UserService {
     }
     return user;
   }
+
   async findOneByEmail(email: string): Promise<User> {
     const user = await this.userRepo.findOne({ where: { email: email } });
     if (!user) {
@@ -46,6 +57,16 @@ export class UserService {
   async findOneWithProfile(id: string): Promise<User> {
     const user = await this.userRepo.findOne({
       where: { id },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        account_status: true,
+        is_verified: true,
+        is_profile_updated: true,
+        profile: true,
+        // don't include password
+      },
       relations: ['profile'], // load profile
     });
 
