@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -6,6 +7,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 
 import { DataSource } from 'typeorm';
@@ -87,21 +89,14 @@ export class AuthService {
   }
 
   async verifyUserEmail(id: string, code: string) {
-    const user_auth_data = await this.userAuthentication.findOne(id, code);
+    const user_auth_data = await this.userAuthentication.findOneWithIdAndCode(
+      id,
+      code,
+    );
 
     if (!user_auth_data) {
       throw new HttpException('Code not matched.', HttpStatus.NOT_FOUND);
     }
-
-    const payload: {
-      user_email: string;
-      user_role: UserRole;
-      user_id: string;
-    } = {
-      user_email: user_auth_data.user.email,
-      user_role: user_auth_data.user.role,
-      user_id: user_auth_data.user.id,
-    };
 
     if (user_auth_data?.is_success) {
       throw new HttpException(
@@ -113,6 +108,16 @@ export class AuthService {
     if (isExpired(user_auth_data.expire_date)) {
       throw new HttpException('This code is expired', HttpStatus.BAD_REQUEST);
     }
+
+    const payload: {
+      user_email: string;
+      user_role: UserRole;
+      user_id: string;
+    } = {
+      user_email: user_auth_data.user.email,
+      user_role: user_auth_data.user.role,
+      user_id: user_auth_data.user.id,
+    };
 
     const access_token = this.jwtService.sign(payload, {
       expiresIn: this.configService.getOrThrow('JWT_ACCESS_EXPIRES_IN'),
@@ -209,5 +214,51 @@ export class AuthService {
       user_id: user_data.id,
       user_email: user_data.email,
     };
+  }
+
+  async resend(user_id: string) {
+    const user_auth_data = await this.userAuthentication.findOneWithId(user_id);
+    if (
+      user_auth_data &&
+      !isExpired(user_auth_data?.expire_date) &&
+      user_auth_data.is_success == false
+    ) {
+      throw new HttpException(
+        'You can resend code after some time',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const new_data = await this.userAuthentication.create_new(
+      user_id,
+      generateRandomCode(4),
+      generateExpireDate(10),
+      AuthenticationType.RESEND,
+    );
+
+    if (!new_data.id) {
+      throw new HttpException('Failed to resend code.', HttpStatus.BAD_REQUEST);
+    }
+
+    return { message: 'Code resend' };
+  }
+
+  async reqForgotPass(email: string) {
+    const user_data = await this.userService.findOneByEmail(email);
+    if (!user_data) {
+      throw new NotFoundException('Please check your email');
+    }
+    const new_data = await this.userAuthentication.create_new(
+      user_data.id,
+      generateRandomCode(4),
+      generateExpireDate(10),
+      AuthenticationType.RESEND,
+    );
+
+    if (!new_data) {
+      throw new HttpException('Something went wrong. Please try again.', 500);
+    }
+
+    return { message: 'A Code has been send to your email.' };
   }
 }

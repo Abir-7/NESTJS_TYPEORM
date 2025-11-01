@@ -24,4 +24,9 @@ export class AuthController {
   userLogin(@Body('email') email: string, @Body('password') password: string) {
     return this.authService.userLogin(email, password);
   }
+
+  @Post('resend')
+  resend(@Body('user_id') user_id: string) {
+    return this.authService.resend(user_id);
+  }
 }

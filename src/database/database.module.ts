@@ -15,6 +15,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         password: configService.get<string>('DB_PASS'),
         database: configService.get<string>('DB_NAME'),
         autoLoadEntities: true,
+
         synchronize: configService.get<boolean>('DB_SYNC'),
         logging: true,
       }),
