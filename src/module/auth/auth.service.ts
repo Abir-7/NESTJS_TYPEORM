@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
@@ -10,7 +11,11 @@ import {
 import { DataSource } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { CreateUserProfileDto } from '../user/user_profile/dto/create-user_profile.dto';
-import { User } from '../user/user/entities/user.entity';
+import {
+  AccountStatus,
+  User,
+  UserRole,
+} from '../user/user/entities/user.entity';
 import { UserProfile } from '../user/user_profile/entities/user_profile.entity';
 import {
   AuthenticationType,
@@ -21,13 +26,17 @@ import { generateExpireDate } from '../../utils/helper/generateExpireDate';
 import { UserService } from '../user/user/user.service';
 import { UserAuthenticationService } from '../user/user_authentication/user_authentication.service';
 import { isExpired } from '../../utils/helper/checkExpireDate';
-
+import { hashPassword, verifyPassword } from '../../utils/helper/bcryptJs';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class AuthService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly userService: UserService,
     private readonly userAuthentication: UserAuthenticationService,
+    private jwtService: JwtService,
+    private configService: ConfigService,
   ) {}
   async createUser(
     create_user_data: CreateUserDto,
@@ -36,7 +45,7 @@ export class AuthService {
     try {
       return await this.dataSource.transaction(async (manager) => {
         const existingUser = await manager.findOne(User, {
-          where: { email: create_user_data.email },
+          where: { email: create_user_data.email.toLowerCase() },
         });
 
         if (existingUser && !existingUser.is_verified) {
@@ -47,7 +56,11 @@ export class AuthService {
           throw new ConflictException('Email already exists');
         }
 
-        const user = manager.create(User, create_user_data);
+        const user = manager.create(User, {
+          ...create_user_data,
+          email: create_user_data.email.toLowerCase(),
+          password: await hashPassword(create_user_data.password),
+        });
         await manager.save(User, user);
         const profile = manager.create(UserProfile, {
           ...profile_data,
@@ -67,17 +80,10 @@ export class AuthService {
     } catch (error) {
       // Fallback for unknown errors
       throw new HttpException(
-        'Failed to create user',
+        error.message || 'Failed to create user',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
-  }
-  findAll() {
-    return `This action returns all auth`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} auth`;
   }
 
   async verifyUserEmail(id: string, code: string) {
@@ -86,6 +92,16 @@ export class AuthService {
     if (!user_auth_data) {
       throw new HttpException('Code not matched.', HttpStatus.NOT_FOUND);
     }
+
+    const payload: {
+      user_email: string;
+      user_role: UserRole;
+      user_id: string;
+    } = {
+      user_email: user_auth_data.user.email,
+      user_role: user_auth_data.user.role,
+      user_id: user_auth_data.user.id,
+    };
 
     if (user_auth_data?.is_success) {
       throw new HttpException(
@@ -98,8 +114,26 @@ export class AuthService {
       throw new HttpException('This code is expired', HttpStatus.BAD_REQUEST);
     }
 
-    return await this.dataSource.transaction(async (manager) => {
-      const result = await manager.update(User, { id }, { is_verified: true });
+    const access_token = this.jwtService.sign(payload, {
+      expiresIn: this.configService.getOrThrow('JWT_ACCESS_EXPIRES_IN'),
+      secret: this.configService.getOrThrow('JWT_ACCESS_SECRET'),
+    });
+
+    const refresh_token = this.jwtService.sign(payload, {
+      expiresIn: this.configService.getOrThrow('JWT_REFRESH_EXPIRES_IN'),
+      secret: this.configService.getOrThrow('JWT_REFRESH_SECRET'),
+    });
+
+    const decoded_access_token = this.jwtService.decode(access_token);
+    const decoded_refresh_token = this.jwtService.decode(access_token);
+
+    await this.dataSource.transaction(async (manager) => {
+      const result = await manager.update(
+        User,
+        { id },
+        { is_verified: true, account_status: AccountStatus.ACTIVE },
+      );
+
       if (result.affected === 0) {
         throw new HttpException('No user found to update', 404);
       }
@@ -108,14 +142,72 @@ export class AuthService {
         { user: { id: id }, code: code },
         { is_success: true },
       );
+
       if (update_user_auth_data.affected === 0) {
         throw new HttpException('No user authentication record found', 404);
       }
       return result;
     });
+
+    return {
+      access_token,
+      access_token_exp: decoded_access_token.exp,
+      refresh_token,
+      refresh_token_exp: decoded_refresh_token.exp,
+      user_id: user_auth_data.user.id,
+      user_email: user_auth_data.user.email,
+    };
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} auth`;
+  async userLogin(email: string, password: string) {
+    const user_data = await this.userService.findOneByEmail(email);
+    if (!user_data) {
+      throw new HttpException('Please check your email.', HttpStatus.NOT_FOUND);
+    }
+
+    if (!(await verifyPassword(password, user_data.password))) {
+      throw new HttpException(
+        'Please check your password.',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+    if (user_data.account_status !== AccountStatus.ACTIVE) {
+      throw new HttpException(
+        `Your account is ${user_data.account_status}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const payload: {
+      user_email: string;
+      user_role: UserRole;
+      user_id: string;
+    } = {
+      user_email: user_data.email,
+      user_role: user_data.role,
+      user_id: user_data.id,
+    };
+
+    const access_token = this.jwtService.sign(payload, {
+      expiresIn: this.configService.getOrThrow('JWT_ACCESS_EXPIRES_IN'),
+      secret: this.configService.getOrThrow('JWT_ACCESS_SECRET'),
+    });
+
+    const refresh_token = this.jwtService.sign(payload, {
+      expiresIn: this.configService.getOrThrow('JWT_REFRESH_EXPIRES_IN'),
+      secret: this.configService.getOrThrow('JWT_REFRESH_SECRET'),
+    });
+
+    const decoded_access_token = this.jwtService.decode(access_token);
+    const decoded_refresh_token = this.jwtService.decode(access_token);
+    console.log(decoded_access_token);
+    return {
+      access_token,
+      access_token_exp: decoded_access_token.exp,
+      refresh_token,
+      refresh_token_exp: decoded_refresh_token.exp,
+      user_id: user_data.id,
+      user_email: user_data.email,
+    };
   }
 }

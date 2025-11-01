@@ -10,6 +10,7 @@ export class UserAuthenticationService {
   async findOne(id: string, code: string) {
     const user_authentication_data = await this.userAuthRepo.findOne({
       where: { user: { id: id }, code },
+      relations: ['user'],
     });
     return user_authentication_data;
   }

@@ -15,6 +15,7 @@ export enum AccountStatus {
   PENDING_VERIFICATION = 'pending_verification',
   BLOCKED = 'blocked',
   DISABLED = 'disabled',
+  ACTIVE = 'active',
 }
 
 export enum UserRole {

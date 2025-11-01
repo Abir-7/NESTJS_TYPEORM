@@ -19,4 +19,9 @@ export class AuthController {
   verifyUserEmail(@Param('id') id: string, @Body('code') code: string) {
     return this.authService.verifyUserEmail(id, code);
   }
+
+  @Post('login')
+  userLogin(@Body('email') email: string, @Body('password') password: string) {
+    return this.authService.userLogin(email, password);
+  }
 }
