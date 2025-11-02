@@ -3,6 +3,7 @@ import { AppModule } from './module/app/app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { ConfigService } from '@nestjs/config';
+import { queue_name } from './lib/rabbitmq/RabitMq.const';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -19,7 +20,7 @@ async function bootstrap() {
     transport: Transport.RMQ,
     options: {
       urls: [configService.getOrThrow<string>('RABBITMQ_URL')],
-      queue: 'email',
+      queue: queue_name.EMAIL,
       queueOptions: { durable: true },
     },
   });

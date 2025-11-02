@@ -9,9 +9,9 @@ import { UserAuthentication } from '../user/user_authentication/entities/user_au
 import { UserModule } from '../user/user/user.module';
 import { DatabaseModule } from '../../database/database.module';
 import { UserAuthenticationModule } from '../user/user_authentication/user_authentication.module';
+
 import { EmailModule } from '../email/email.module';
-import { ClientsModule, Transport } from '@nestjs/microservices';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { RabbitmqModule } from '../../lib/rabbitmq/rabbitmq.module';
 
 @Module({
   imports: [
@@ -19,22 +19,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     UserModule,
     UserAuthenticationModule,
     DatabaseModule,
+    RabbitmqModule,
     EmailModule,
-    ClientsModule.registerAsync([
-      {
-        name: 'EMAIL_SERVICE',
-        imports: [ConfigModule],
-        inject: [ConfigService],
-        useFactory: (configService: ConfigService) => ({
-          transport: Transport.RMQ,
-          options: {
-            urls: [configService.getOrThrow<string>('RABBITMQ_URL')],
-            queue: configService.getOrThrow<string>('RABBITMQ_USER_QUEUE'),
-            queueOptions: { durable: true },
-          },
-        }),
-      },
-    ]),
   ],
   controllers: [AuthController],
   providers: [AuthService],

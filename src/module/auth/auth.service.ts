@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -31,9 +32,10 @@ import { isExpired } from '../../utils/helper/checkExpireDate';
 import { hashPassword, verifyPassword } from '../../utils/helper/bcryptJs';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { EmailService } from '../email/email.service';
+
 import { ClientProxy } from '@nestjs/microservices';
-import { lastValueFrom } from 'rxjs';
+import { queue_name, rabbitmq_service } from '../../lib/rabbitmq/RabitMq.const';
+//import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class AuthService {
@@ -43,8 +45,7 @@ export class AuthService {
     private readonly userAuthentication: UserAuthenticationService,
     private jwtService: JwtService,
     private configService: ConfigService,
-    private readonly emailService: EmailService,
-    @Inject('EMAIL_SERVICE') private rabitClient: ClientProxy,
+    @Inject(rabbitmq_service.EMAIL_SERVICE) private rabitClient: ClientProxy,
   ) {}
   async createUser(
     create_user_data: CreateUserDto,
@@ -75,21 +76,21 @@ export class AuthService {
           user: user,
         });
         await manager.save(UserProfile, profile);
-
+        const otp = generateRandomCode(4);
         const authentication = manager.create(UserAuthentication, {
           user: user,
-          code: generateRandomCode(4),
+          code: otp,
           expire_date: generateExpireDate(10),
           type: AuthenticationType.EMAIL,
         });
         await manager.save(UserAuthentication, authentication);
-        //email
-        await this.emailService.sendWelcomeEmail(
-          user.email,
-          profile_data.first_name || '',
-        );
 
-        await lastValueFrom(this.rabitClient.emit('email', { type: 'email' }));
+        //rabit_mq email
+        this.rabitClient.emit(queue_name.EMAIL, {
+          to: user.email,
+          otp,
+          title: 'Verify Your Reset Password Request',
+        });
 
         return user;
       });
