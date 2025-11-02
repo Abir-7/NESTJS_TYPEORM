@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -31,6 +30,8 @@ import { isExpired } from '../../utils/helper/checkExpireDate';
 import { hashPassword, verifyPassword } from '../../utils/helper/bcryptJs';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { EmailService } from '../email/email.service';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -39,6 +40,7 @@ export class AuthService {
     private readonly userAuthentication: UserAuthenticationService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private readonly emailService: EmailService,
   ) {}
   async createUser(
     create_user_data: CreateUserDto,
@@ -77,6 +79,11 @@ export class AuthService {
           type: AuthenticationType.EMAIL,
         });
         await manager.save(UserAuthentication, authentication);
+        //email
+        await this.emailService.sendWelcomeEmail(
+          user.email,
+          profile_data.first_name || '',
+        );
         return user;
       });
     } catch (error) {

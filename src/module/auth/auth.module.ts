@@ -9,6 +9,7 @@ import { UserAuthentication } from '../user/user_authentication/entities/user_au
 import { UserModule } from '../user/user/user.module';
 import { DatabaseModule } from '../../database/database.module';
 import { UserAuthenticationModule } from '../user/user_authentication/user_authentication.module';
+import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { UserAuthenticationModule } from '../user/user_authentication/user_authe
     UserModule,
     UserAuthenticationModule,
     DatabaseModule,
+    EmailModule,
   ],
   controllers: [AuthController],
   providers: [AuthService],
