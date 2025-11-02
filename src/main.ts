@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './module/app/app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -11,6 +13,18 @@ async function bootstrap() {
       transform: true, // transforms payload to DTO class instances
     }),
   );
+  const configService = app.get(ConfigService);
+
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.RMQ,
+    options: {
+      urls: [configService.getOrThrow<string>('RABBITMQ_URL')],
+      queue: 'email',
+      queueOptions: { durable: true },
+    },
+  });
+
+  await app.startAllMicroservices();
 
   await app.listen(process.env.PORT ?? 3000);
 }

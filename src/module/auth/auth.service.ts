@@ -5,6 +5,7 @@ import {
   ConflictException,
   HttpException,
   HttpStatus,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -31,6 +32,8 @@ import { hashPassword, verifyPassword } from '../../utils/helper/bcryptJs';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from '../email/email.service';
+import { ClientProxy } from '@nestjs/microservices';
+import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class AuthService {
@@ -41,6 +44,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private readonly emailService: EmailService,
+    @Inject('EMAIL_SERVICE') private rabitClient: ClientProxy,
   ) {}
   async createUser(
     create_user_data: CreateUserDto,
@@ -84,6 +88,9 @@ export class AuthService {
           user.email,
           profile_data.first_name || '',
         );
+
+        await lastValueFrom(this.rabitClient.emit('email', { type: 'email' }));
+
         return user;
       });
     } catch (error) {
