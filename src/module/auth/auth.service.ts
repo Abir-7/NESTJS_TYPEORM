@@ -3,6 +3,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
+  BadRequestException,
   ConflictException,
   HttpException,
   HttpStatus,
@@ -89,7 +90,7 @@ export class AuthService {
         this.rabitClient.emit(queue_name.EMAIL, {
           to: user.email,
           otp,
-          title: 'Verify Your Reset Password Request',
+          title: 'Verif your email',
         });
 
         return user;
@@ -233,6 +234,7 @@ export class AuthService {
 
   async resend(user_id: string) {
     const user_auth_data = await this.userAuthentication.findOneWithId(user_id);
+    const user_data = await this.userService.findOne(user_id);
     if (
       user_auth_data &&
       !isExpired(user_auth_data?.expire_date) &&
@@ -244,12 +246,20 @@ export class AuthService {
       );
     }
 
+    const otp = generateRandomCode(4);
+
     const new_data = await this.userAuthentication.create_new(
       user_id,
-      generateRandomCode(4),
+      otp,
       generateExpireDate(10),
       AuthenticationType.RESEND,
     );
+    // rabit Mq
+    this.rabitClient.emit(queue_name.EMAIL, {
+      to: user_data.email,
+      otp,
+      title: 'Verification Code',
+    });
 
     if (!new_data.id) {
       throw new HttpException('Failed to resend code.', HttpStatus.BAD_REQUEST);
@@ -263,16 +273,30 @@ export class AuthService {
     if (!user_data) {
       throw new NotFoundException('Please check your email');
     }
+
+    if (user_data.is_verified === false) {
+      throw new BadRequestException('Account not found/verified.');
+    }
+
+    const otp = generateRandomCode(4);
+
     const new_data = await this.userAuthentication.create_new(
       user_data.id,
-      generateRandomCode(4),
+      otp,
       generateExpireDate(10),
-      AuthenticationType.RESEND,
+      AuthenticationType.RESET_PASSWORD,
     );
 
     if (!new_data) {
       throw new HttpException('Something went wrong. Please try again.', 500);
     }
+
+    // rabit Mq
+    this.rabitClient.emit(queue_name.EMAIL, {
+      to: user_data.email,
+      otp,
+      title: 'Verify Your Reset Password Request',
+    });
 
     return { message: 'A Code has been send to your email.' };
   }

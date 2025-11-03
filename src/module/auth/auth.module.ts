@@ -10,7 +10,7 @@ import { UserModule } from '../user/user/user.module';
 import { DatabaseModule } from '../../database/database.module';
 import { UserAuthenticationModule } from '../user/user_authentication/user_authentication.module';
 
-import { EmailModule } from '../email/email.module';
+import { EmailModule } from '../../lib/email/email.module';
 import { RabbitmqModule } from '../../lib/rabbitmq/rabbitmq.module';
 
 @Module({
