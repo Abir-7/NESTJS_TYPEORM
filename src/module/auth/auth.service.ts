@@ -298,6 +298,125 @@ export class AuthService {
       title: 'Verify Your Reset Password Request',
     });
 
-    return { message: 'A Code has been send to your email.' };
+    return {
+      message: 'A Code has been send to your email.',
+      user_id: user_data.id,
+    };
+  }
+
+  async verifyReset(user_id: string, code: string) {
+    const user_auth_data = await this.userAuthentication.findOneWithIdAndCode(
+      user_id,
+      code,
+    );
+
+    if (!user_auth_data) {
+      throw new HttpException('Code not matched.', HttpStatus.NOT_FOUND);
+    }
+
+    if (user_auth_data?.is_success) {
+      throw new HttpException(
+        'This code is already used',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (isExpired(user_auth_data.expire_date)) {
+      throw new HttpException('This code is expired', HttpStatus.BAD_REQUEST);
+    }
+    const user_data = await this.userService.findOne(user_id);
+
+    return await this.dataSource.transaction(async (manager) => {
+      const result = await manager.update(
+        User,
+        { id: user_id },
+        { need_to_reset_password: true },
+      );
+
+      if (result.affected === 0) {
+        throw new HttpException('No user found to update', 404);
+      }
+      const update_user_auth_data = await manager.update(
+        UserAuthentication,
+        { user: { id: user_id }, code: code },
+        { is_success: true },
+      );
+
+      if (update_user_auth_data.affected === 0) {
+        throw new HttpException('No user authentication record found', 404);
+      }
+
+      const payload: {
+        user_email: string;
+        user_role: UserRole;
+        user_id: string;
+      } = {
+        user_email: user_data.email,
+        user_role: user_data.role,
+        user_id: user_data.id,
+      };
+
+      const access_token = this.jwtService.sign(payload, {
+        expiresIn: '10m',
+        secret: this.configService.getOrThrow('JWT_ACCESS_SECRET'),
+      });
+
+      return { token: access_token };
+    });
+  }
+  async resetPassword(
+    token: string,
+    {
+      new_password,
+      confirm_password,
+    }: { new_password: string; confirm_password: string },
+  ) {
+    const decoded = await this.jwtService.verify(token, {
+      secret: this.configService.getOrThrow('JWT_ACCESS_SECRET'),
+    });
+
+    if (!decoded?.user_id) {
+      throw new HttpException(
+        'Invalid or expired token',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    if (!new_password || !confirm_password) {
+      throw new BadRequestException('Both password fields are required');
+    }
+
+    if (new_password !== confirm_password) {
+      throw new BadRequestException('Passwords do not match');
+    }
+
+    const user = await this.userService.findOne(decoded.user_id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.need_to_reset_password) {
+      throw new BadRequestException('Password reset is not allowed');
+    }
+
+    // 4️⃣ Hash and update password
+    const hashedPassword = await hashPassword(new_password);
+
+    await this.dataSource.transaction(async (manager) => {
+      const result = await manager.update(
+        User,
+        { id: decoded.user_id },
+        { password: hashedPassword, need_to_reset_password: false },
+      );
+
+      if (result.affected === 0) {
+        throw new HttpException(
+          'Password update failed',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    });
+
+    return { message: 'Password reset successfully' };
   }
 }

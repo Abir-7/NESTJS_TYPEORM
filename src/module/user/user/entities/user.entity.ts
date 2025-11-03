@@ -56,6 +56,9 @@ export class User {
   @Column({ default: false, name: 'is_verified' })
   is_verified: boolean;
 
+  @Column({ default: false, name: 'need_to_reset_password' })
+  need_to_reset_password: boolean;
+
   // @OneToOne(() => UserProfile, (profile) => profile.user, {
   //   cascade: true,
   //   eager: true,
