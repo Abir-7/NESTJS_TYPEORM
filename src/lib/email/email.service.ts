@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 import { Injectable } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 
@@ -7,7 +5,7 @@ import { MailerService } from '@nestjs-modules/mailer';
 export class EmailService {
   constructor(private readonly mailerService: MailerService) {}
 
-  async sendWelcomeEmail(to: string, otp: string, title: string) {
+  async sendVerificationEmail(to: string, otp: string, title: string) {
     const html = `
       <!DOCTYPE html>
       <html lang="en">

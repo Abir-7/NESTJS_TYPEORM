@@ -1,12 +1,21 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Controller, Post, Body, Patch, Param, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Req,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 
 import { CreateUserWithProfileDto } from './dto/create-user-with-profile.dto';
 import { splitUserProfile } from '../../utils/helper/split-user-profile';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import type { Request } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -53,5 +62,20 @@ export class AuthController {
     }
 
     return this.authService.resetPassword(token, body);
+  }
+
+  @Post('new_access_token')
+  async refreshAccessToken(
+    @Req() req: Request,
+    @Body() body: { refresh_token?: string },
+  ) {
+    const refreshToken: string =
+      req.cookies?.refresh_token || body.refresh_token;
+
+    if (!refreshToken) {
+      throw new UnauthorizedException('No refresh token provided');
+    }
+
+    return await this.authService.refreshAccessToken(refreshToken);
   }
 }

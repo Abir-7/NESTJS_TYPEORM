@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -10,6 +10,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 
 import { DataSource } from 'typeorm';
@@ -33,10 +34,9 @@ import { isExpired } from '../../utils/helper/checkExpireDate';
 import { hashPassword, verifyPassword } from '../../utils/helper/bcryptJs';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-
-import { ClientProxy } from '@nestjs/microservices';
-import { queue_name, rabbitmq_service } from '../../lib/rabbitmq/RabitMq.const';
-//import { lastValueFrom } from 'rxjs';
+import { InjectQueue } from '@nestjs/bullmq';
+import { queue_name } from '../../const/queue.const';
+import { Queue } from 'bullmq';
 
 @Injectable()
 export class AuthService {
@@ -46,7 +46,7 @@ export class AuthService {
     private readonly userAuthentication: UserAuthenticationService,
     private jwtService: JwtService,
     private configService: ConfigService,
-    @Inject(rabbitmq_service.EMAIL_SERVICE) private rabitClient: ClientProxy,
+    @InjectQueue(queue_name.EMAIL) private readonly emailQueue: Queue,
   ) {}
   async createUser(
     create_user_data: CreateUserDto,
@@ -86,13 +86,11 @@ export class AuthService {
         });
         await manager.save(UserAuthentication, authentication);
 
-        //rabit_mq email
-        this.rabitClient.emit(queue_name.EMAIL, {
+        await this.emailQueue.add('send_verification_email', {
           to: user.email,
           otp,
           title: 'Verif your email',
         });
-
         return user;
       });
     } catch (error) {
@@ -254,8 +252,8 @@ export class AuthService {
       generateExpireDate(10),
       AuthenticationType.RESEND,
     );
-    // rabit Mq
-    this.rabitClient.emit(queue_name.EMAIL, {
+
+    await this.emailQueue.add('send_verification_email', {
       to: user_data.email,
       otp,
       title: 'Verification Code',
@@ -291,8 +289,7 @@ export class AuthService {
       throw new HttpException('Something went wrong. Please try again.', 500);
     }
 
-    // rabit Mq
-    this.rabitClient.emit(queue_name.EMAIL, {
+    await this.emailQueue.add('send_verification_email', {
       to: user_data.email,
       otp,
       title: 'Verify Your Reset Password Request',
@@ -418,5 +415,38 @@ export class AuthService {
     });
 
     return { message: 'Password reset successfully' };
+  }
+
+  async refreshAccessToken(refreshToken: string) {
+    try {
+      // Verify refresh token validity
+      const payload = await this.jwtService.verify(refreshToken, {
+        secret: this.configService.getOrThrow('JWT_REFRESH_SECRET'),
+      });
+
+      const user_data = await this.userService.findOne(payload.user_id);
+
+      if (!user_data) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      const newAccessToken = this.jwtService.sign(
+        {
+          user_email: payload.user_email,
+          user_role: payload.user_role,
+          user_id: payload.user_id,
+        },
+        {
+          secret: this.configService.getOrThrow('JWT_ACCESS_SECRET'),
+          expiresIn: '15m',
+        },
+      );
+
+      return {
+        access_token: newAccessToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
   }
 }
