@@ -18,8 +18,9 @@ import { EmailModule } from '../email/email.module';
         },
         defaultJobOptions: {
           attempts: 3,
-          removeOnComplete: true,
-          removeOnFail: false,
+          removeOnComplete: 500,
+          removeOnFail: 300,
+          backoff: 2000,
         },
       }),
     }),
