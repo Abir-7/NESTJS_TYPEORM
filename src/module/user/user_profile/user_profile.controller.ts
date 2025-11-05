@@ -17,7 +17,7 @@ import { MulterModule } from '../../../middleware/multer.module';
 
 import { formatFilePath } from '../../../utils/helper/formatFilePath';
 import { ParseJsonPipe } from '../../../common/pipe/parse_data.pipe';
-import { deleteFile } from '../../../utils/helper/deleteDiskFile';
+//import { deleteFile } from '../../../utils/helper/deleteDiskFile';
 
 @Controller('user_profile')
 export class UserProfileController {
@@ -54,8 +54,8 @@ export class UserProfileController {
   ) {
     const image = `${this.configService.getOrThrow('BASE_URL')}${formatFilePath(file.path)}`;
     const image_id = formatFilePath(file.path);
-    deleteFile(image_id);
-    console.log(image);
+    // deleteFile(image_id);
+    console.log(image, image_id);
     console.log(profileData);
     return {
       message: 'File uploaded successfully',
