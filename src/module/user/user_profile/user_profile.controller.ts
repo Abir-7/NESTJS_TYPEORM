@@ -8,6 +8,7 @@ import {
   UseInterceptors,
   UploadedFile,
   ValidationPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { UserProfileService } from './user_profile.service';
 import { UpdateUserProfileDto } from './dto/update-user_profile.dto';
@@ -17,6 +18,7 @@ import { MulterModule } from '../../../middleware/multer.module';
 
 import { formatFilePath } from '../../../utils/helper/formatFilePath';
 import { ParseJsonPipe } from '../../../common/pipe/parse_data.pipe';
+import { AuthGuard } from '../../../middleware/auth.guard';
 //import { deleteFile } from '../../../utils/helper/deleteDiskFile';
 
 @Controller('user_profile')
@@ -36,6 +38,7 @@ export class UserProfileController {
     return this.userProfileService.findOne(id);
   }
 
+  @UseGuards(AuthGuard)
   @Patch(':id')
   @UseInterceptors(MulterModule.uploadInterceptor('file', 20 * 1024 * 1024)) // 20MB limit
   update(
