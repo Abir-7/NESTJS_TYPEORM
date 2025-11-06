@@ -23,6 +23,7 @@ import { RolesGuard } from '../../../middleware/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorators';
 import { UserRole } from '../user/entities/user.entity';
 //import { deleteFile } from '../../../utils/helper/deleteDiskFile';
+//import { deleteFile } from '../../../utils/helper/deleteDiskFile';
 
 @Controller('user_profile')
 export class UserProfileController {
@@ -42,7 +43,7 @@ export class UserProfileController {
   }
 
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.USER, UserRole.ADMIN)
   @Patch(':id')
   @UseInterceptors(MulterModule.uploadInterceptor('file', 20 * 1024 * 1024)) // 20MB limit
   update(
@@ -62,11 +63,9 @@ export class UserProfileController {
     const image = `${this.configService.getOrThrow('BASE_URL')}${formatFilePath(file.path)}`;
     const image_id = formatFilePath(file.path);
     // deleteFile(image_id);
-    console.log(image, image_id);
-    console.log(profileData);
-    return {
-      message: 'File uploaded successfully',
-      image: image,
-    };
+
+    const profile_data = { ...profileData, image, image_id };
+
+    return this.userProfileService.updateProfile(id, profile_data);
   }
 }
