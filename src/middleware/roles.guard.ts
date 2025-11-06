@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   Injectable,
   CanActivate,
@@ -33,7 +32,7 @@ export class RolesGuard implements CanActivate {
 
     const hasRole = requiredRoles.includes(user.user_role);
     if (!hasRole) {
-      throw new ForbiddenException('Insufficient role');
+      throw new ForbiddenException("You don't have permission.");
     }
 
     return true;

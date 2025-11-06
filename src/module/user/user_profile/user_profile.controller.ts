@@ -42,7 +42,7 @@ export class UserProfileController {
   }
 
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles(UserRole.USER)
+  @Roles(UserRole.ADMIN)
   @Patch(':id')
   @UseInterceptors(MulterModule.uploadInterceptor('file', 20 * 1024 * 1024)) // 20MB limit
   update(

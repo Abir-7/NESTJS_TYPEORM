@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { queue_name } from '../../../common/const/queue.const';
 import { Job } from 'bullmq';
