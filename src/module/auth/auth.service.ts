@@ -36,8 +36,9 @@ import { hashPassword, verifyPassword } from '../../utils/helper/bcryptJs';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
-import { queue_name } from '../../const/queue.const';
+import { queue_name } from '../../common/const/queue.const';
 import { Queue } from 'bullmq';
+import { JwtPayload } from '../../types/decode_jwt.interface';
 
 @Injectable()
 export class AuthService {
@@ -144,8 +145,10 @@ export class AuthService {
       secret: this.configService.getOrThrow('JWT_REFRESH_SECRET'),
     });
 
-    const decoded_access_token = this.jwtService.decode(access_token);
-    const decoded_refresh_token = this.jwtService.decode(access_token);
+    const decoded_access_token: JwtPayload =
+      this.jwtService.decode(access_token);
+    const decoded_refresh_token: JwtPayload =
+      this.jwtService.decode(access_token);
 
     await this.dataSource.transaction(async (manager) => {
       const result = await manager.update(

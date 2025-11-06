@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -10,6 +9,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { JwtPayload } from '../types/decode_jwt.interface';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -26,10 +26,12 @@ export class AuthGuard implements CanActivate {
     if (!token) throw new UnauthorizedException('Token missing or malformed');
 
     try {
-      const payload = await this.jwtService.verifyAsync(token as string);
-      request.user = payload; // attach decoded user to request
+      const payload: JwtPayload = await this.jwtService.decode(token as string);
+
+      request.user = payload;
       return true;
     } catch (err) {
+      console.log(err);
       throw new UnauthorizedException('Invalid or expired token');
     }
   }

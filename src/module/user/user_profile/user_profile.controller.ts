@@ -19,6 +19,9 @@ import { MulterModule } from '../../../middleware/multer.module';
 import { formatFilePath } from '../../../utils/helper/formatFilePath';
 import { ParseJsonPipe } from '../../../common/pipe/parse_data.pipe';
 import { AuthGuard } from '../../../middleware/auth.guard';
+import { RolesGuard } from '../../../middleware/roles.guard';
+import { Roles } from '../../../common/decorators/roles.decorators';
+import { UserRole } from '../user/entities/user.entity';
 //import { deleteFile } from '../../../utils/helper/deleteDiskFile';
 
 @Controller('user_profile')
@@ -38,7 +41,8 @@ export class UserProfileController {
     return this.userProfileService.findOne(id);
   }
 
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.USER)
   @Patch(':id')
   @UseInterceptors(MulterModule.uploadInterceptor('file', 20 * 1024 * 1024)) // 20MB limit
   update(
