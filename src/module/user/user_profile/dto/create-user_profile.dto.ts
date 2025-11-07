@@ -42,5 +42,5 @@ export class CreateUserProfileDto {
 
   @IsOptional()
   @IsDateString()
-  date_of_birth?: string;
+  date_of_birth?: Date;
 }

@@ -56,7 +56,7 @@ export class AuthController {
   @Patch('reset_password')
   resetPassword(@Req() req: Request, @Body() body: ResetPasswordDto) {
     const authHeader = req.headers['authorization'];
-    const token = authHeader?.split(' ')[1] as string; // Extract after "Bearer "
+    const token = authHeader?.split(' ')[1] as string;
     if (!token) {
       throw new Error('No token provided');
     }
@@ -67,7 +67,7 @@ export class AuthController {
   @Post('new_access_token')
   async refreshAccessToken(
     @Req() req: Request,
-    @Body() body: { refresh_token?: string },
+    @Body() body: { refresh_token: string },
   ) {
     const refreshToken: string =
       req.cookies?.refresh_token || body.refresh_token;

@@ -37,7 +37,15 @@ import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import { queue_name } from '../../common/const/queue.const';
 import { Queue } from 'bullmq';
-import { JwtPayload } from '../../types/decode_jwt.interface';
+
+import {
+  IAccessTokenResponse,
+  IEmailCodeResponse,
+  IMessageResponse,
+  ITokenResponse,
+  IVerifyUserResponse,
+} from '../../types/response/auth_service_response.interface';
+import { JwtPayload } from '../../types/auth/decode_jwt.interface';
 
 @Injectable()
 export class AuthService {
@@ -52,7 +60,7 @@ export class AuthService {
   async createUser(
     create_user_data: CreateUserDto,
     profile_data: CreateUserProfileDto,
-  ): Promise<User> {
+  ): Promise<IEmailCodeResponse> {
     try {
       return await this.dataSource.transaction(async (manager) => {
         const existingUser = await manager.findOne(User, {
@@ -92,7 +100,10 @@ export class AuthService {
           otp,
           title: 'Verif your email',
         });
-        return user;
+        return {
+          message: 'A verification code sent to your email.',
+          user_id: user.id,
+        };
       });
     } catch (error) {
       // Fallback for unknown errors
@@ -103,7 +114,10 @@ export class AuthService {
     }
   }
 
-  async verifyUserEmail(id: string, code: string) {
+  async verifyUserEmail(
+    id: string,
+    code: string,
+  ): Promise<IVerifyUserResponse> {
     const user_auth_data = await this.userAuthentication.findOneWithIdAndCode(
       id,
       code,
@@ -181,7 +195,10 @@ export class AuthService {
     };
   }
 
-  async userLogin(email: string, password: string) {
+  async userLogin(
+    email: string,
+    password: string,
+  ): Promise<IVerifyUserResponse> {
     const user_data = await this.userService.findOneByEmail(email);
     if (!user_data) {
       throw new HttpException('Please check your email.', HttpStatus.NOT_FOUND);
@@ -233,9 +250,9 @@ export class AuthService {
     };
   }
 
-  async resend(user_id: string) {
+  async resend(user_id: string): Promise<IMessageResponse> {
     const user_auth_data = await this.userAuthentication.findOneWithId(user_id);
-    const user_data = await this.userService.findOne(user_id);
+    const user_data = await this.userService.findOneById(user_id);
     if (
       user_auth_data &&
       !isExpired(user_auth_data?.expire_date) &&
@@ -269,7 +286,7 @@ export class AuthService {
     return { message: 'Code resend' };
   }
 
-  async reqForgotPass(email: string) {
+  async reqForgotPass(email: string): Promise<IEmailCodeResponse> {
     const user_data = await this.userService.findOneByEmail(email);
     if (!user_data) {
       throw new NotFoundException('Please check your email');
@@ -304,7 +321,7 @@ export class AuthService {
     };
   }
 
-  async verifyReset(user_id: string, code: string) {
+  async verifyReset(user_id: string, code: string): Promise<ITokenResponse> {
     const user_auth_data = await this.userAuthentication.findOneWithIdAndCode(
       user_id,
       code,
@@ -324,7 +341,7 @@ export class AuthService {
     if (isExpired(user_auth_data.expire_date)) {
       throw new HttpException('This code is expired', HttpStatus.BAD_REQUEST);
     }
-    const user_data = await this.userService.findOne(user_id);
+    const user_data = await this.userService.findOneById(user_id);
 
     return await this.dataSource.transaction(async (manager) => {
       const result = await manager.update(
@@ -370,7 +387,7 @@ export class AuthService {
       new_password,
       confirm_password,
     }: { new_password: string; confirm_password: string },
-  ) {
+  ): Promise<IMessageResponse> {
     const decoded = await this.jwtService.verify(token, {
       secret: this.configService.getOrThrow('JWT_ACCESS_SECRET'),
     });
@@ -390,7 +407,7 @@ export class AuthService {
       throw new BadRequestException('Passwords do not match');
     }
 
-    const user = await this.userService.findOne(decoded.user_id);
+    const user = await this.userService.findOneById(decoded.user_id);
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -420,20 +437,22 @@ export class AuthService {
     return { message: 'Password reset successfully' };
   }
 
-  async refreshAccessToken(refreshToken: string) {
+  async refreshAccessToken(
+    refresh_token: string,
+  ): Promise<IAccessTokenResponse> {
     try {
       // Verify refresh token validity
-      const payload = await this.jwtService.verify(refreshToken, {
+      const payload = await this.jwtService.verify(refresh_token, {
         secret: this.configService.getOrThrow('JWT_REFRESH_SECRET'),
       });
 
-      const user_data = await this.userService.findOne(payload.user_id);
+      const user_data = await this.userService.findOneById(payload.user_id);
 
       if (!user_data) {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
-      const newAccessToken = this.jwtService.sign(
+      const new_access_token = this.jwtService.sign(
         {
           user_email: payload.user_email,
           user_role: payload.user_role,
@@ -446,7 +465,7 @@ export class AuthService {
       );
 
       return {
-        access_token: newAccessToken,
+        access_token: new_access_token,
       };
     } catch (error) {
       throw new UnauthorizedException('Invalid or expired refresh token');

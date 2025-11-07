@@ -44,5 +44,5 @@ export class UserProfile {
   zip_code?: string;
 
   @Column({ name: 'date_of_birth', type: 'date', nullable: true })
-  date_of_birth?: string;
+  date_of_birth?: Date;
 }

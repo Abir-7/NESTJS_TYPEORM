@@ -2,7 +2,7 @@ import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { queue_name } from '../../../common/const/queue.const';
 import { Job } from 'bullmq';
 import { EmailService } from '../../email/email.service';
-import { EmailJobData } from '../../../types/email_job.interface';
+import { EmailJobData } from '../../../types/bullmq_jobs/email_job.interface';
 
 @Processor(queue_name.EMAIL, { concurrency: 3 })
 export class EmailProcessor extends WorkerHost {

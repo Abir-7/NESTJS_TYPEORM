@@ -1,9 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-floating-promises */
+import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserProfile } from './entities/user_profile.entity';
-import { IUserProfile } from '../../../types/user_profile.interface';
+
+import { deleteFile } from '../../../utils/helper/deleteDiskFile';
+import { UpdateUserProfileDto } from './dto/update-user_profile.dto';
 
 @Injectable()
 export class UserProfileService {
@@ -29,19 +32,35 @@ export class UserProfileService {
 
   async updateProfile(
     id: string,
-    updateUserProfileDto: IUserProfile,
+    updateUserProfileData: UpdateUserProfileDto,
   ): Promise<UserProfile> {
     const profile = await this.userProfileRepository.findOneBy({
       user: { id },
     });
+
     if (!profile) {
       throw new NotFoundException(`User profile with id ${id} not found`);
     }
+    const old_image_id = profile.image_id;
 
-    //!  delete previous image
-    Object.assign(profile, updateUserProfileDto);
+    Object.assign(profile, updateUserProfileData);
 
-    // Step 3: save updated profile
-    return await this.userProfileRepository.save(profile);
+    const updated_profile = await this.userProfileRepository.save(profile);
+
+    if (!updated_profile) {
+      if (updateUserProfileData.image_id) {
+        deleteFile(updateUserProfileData.image_id);
+      }
+      throw new HttpException(
+        `User profile with id ${id} faild to update.`,
+        400,
+      );
+    }
+
+    if (updateUserProfileData.image_id && old_image_id) {
+      deleteFile(old_image_id);
+    }
+
+    return updated_profile;
   }
 }

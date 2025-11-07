@@ -38,8 +38,4 @@ export class UserAuthenticationService {
     });
     return user_authentication_data;
   }
-  update(id: number, updateUserAuthenticationDto: any) {
-    console.log(updateUserAuthenticationDto);
-    return `This action updates a #${id} userAuthentication`;
-  }
 }

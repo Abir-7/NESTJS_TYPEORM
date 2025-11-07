@@ -5,8 +5,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
-
-import { UpdateUserDto } from './dto/update-user.dto';
+import { IMessageResponse } from '../../../types/response/auth_service_response.interface';
 
 @Injectable()
 export class UserService {
@@ -15,12 +14,10 @@ export class UserService {
     private readonly userRepo: Repository<User>,
   ) {}
 
-  // Get all users
   async findAll(): Promise<User[]> {
     return await this.userRepo.find();
   }
 
-  // Get all users WITH profile
   async findAllWithProfile(): Promise<User[]> {
     return await this.userRepo.find({
       select: {
@@ -36,8 +33,8 @@ export class UserService {
       relations: ['profile'], // load profile
     });
   }
-  // Get one user by UUID (without profile)
-  async findOne(id: string): Promise<User> {
+
+  async findOneById(id: string): Promise<User> {
     const user = await this.userRepo.findOneBy({ id });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
@@ -53,7 +50,6 @@ export class UserService {
     return user;
   }
 
-  // Get one user by UUID WITH profile
   async findOneWithProfile(id: string): Promise<User> {
     const user = await this.userRepo.findOne({
       where: { id },
@@ -73,20 +69,11 @@ export class UserService {
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
-
     return user;
   }
 
-  // Update a user by UUID
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
-    const user = await this.findOne(id); // throws if not found
-    Object.assign(user, updateUserDto);
-    return await this.userRepo.save(user);
-  }
-
-  // Delete a user by UUID
-  async remove(id: string): Promise<{ message: string }> {
-    const user = await this.findOne(id); // throws if not found
+  async remove(id: string): Promise<IMessageResponse> {
+    const user = await this.findOneById(id); // throws if not found
     await this.userRepo.remove(user);
     return { message: `User with ID ${id} has been removed` };
   }

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { ConfigService } from '@nestjs/config';
 import {
   Controller,
@@ -22,6 +24,9 @@ import { AuthGuard } from '../../../middleware/auth.guard';
 import { RolesGuard } from '../../../middleware/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorators';
 import { UserRole } from '../user/entities/user.entity';
+
+import { User } from '../../../common/decorators/user.decorator';
+import type { IAuthData } from '../../../types/auth/auth_data.interface';
 //import { deleteFile } from '../../../utils/helper/deleteDiskFile';
 //import { deleteFile } from '../../../utils/helper/deleteDiskFile';
 
@@ -44,11 +49,11 @@ export class UserProfileController {
 
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UserRole.USER, UserRole.ADMIN)
-  @Patch(':id')
+  @Patch()
   @UseInterceptors(MulterModule.uploadInterceptor('file', 20 * 1024 * 1024)) // 20MB limit
   update(
     @UploadedFile() file: Express.Multer.File,
-    @Param('id', new ParseUUIDPipe()) id: string,
+    @User() user: IAuthData,
     @Body(
       'data',
       ParseJsonPipe,
@@ -66,6 +71,6 @@ export class UserProfileController {
 
     const profile_data = { ...profileData, image, image_id };
 
-    return this.userProfileService.updateProfile(id, profile_data);
+    return this.userProfileService.updateProfile(user.user_id, profile_data);
   }
 }

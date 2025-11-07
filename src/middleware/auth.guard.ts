@@ -9,7 +9,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { JwtPayload } from '../types/decode_jwt.interface';
+import { JwtPayload } from '../types/auth/decode_jwt.interface';
+import { IAuthData } from '../types/auth/auth_data.interface';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -28,7 +29,13 @@ export class AuthGuard implements CanActivate {
     try {
       const payload: JwtPayload = await this.jwtService.decode(token as string);
 
-      request.user = payload;
+      const auth_user: IAuthData = {
+        user_email: payload.user_email,
+        user_id: payload.user_id,
+        user_role: payload.user_role,
+      };
+
+      request.user = auth_user;
       return true;
     } catch (err) {
       console.log(err);
