@@ -1,11 +1,15 @@
+/* eslint-disable @typescript-eslint/no-floating-promises */
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './module/app/app.module';
 import { ValidationPipe } from '@nestjs/common';
 
 import cookieParser from 'cookie-parser';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
 
   app.use(cookieParser());
 
@@ -17,7 +21,9 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(process.env.PORT ?? 3000);
+  const port = configService.get<string>('PORT');
+
+  await app.listen(port as string);
 }
-// eslint-disable-next-line @typescript-eslint/no-floating-promises
+
 bootstrap();

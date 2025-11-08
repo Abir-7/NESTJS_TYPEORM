@@ -11,7 +11,7 @@ import { EmailService } from './email.service';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         transport: {
-          service: 'gmail',
+          service: configService.getOrThrow<string>('EMAIL_SERVICE'),
           auth: {
             user: configService.getOrThrow<string>('GMAIL_USER'),
             pass: configService.getOrThrow<string>('GMAIL_PASS'),
