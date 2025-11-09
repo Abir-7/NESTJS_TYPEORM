@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
@@ -58,60 +59,67 @@ export class AuthService {
     @InjectQueue(queue_name.EMAIL) private readonly emailQueue: Queue,
   ) {}
   async createUser(
-    create_user_data: CreateUserDto,
-    profile_data: CreateUserProfileDto,
+    createUserDto: CreateUserDto,
+    profileDto: CreateUserProfileDto,
   ): Promise<IEmailCodeResponse> {
-    try {
-      return await this.dataSource.transaction(async (manager) => {
-        const existingUser = await manager.findOne(User, {
-          where: { email: create_user_data.email.toLowerCase() },
-        });
+    return this.dataSource
+      .transaction(async (manager) => {
+        const email = createUserDto.email.toLowerCase();
 
-        if (existingUser && !existingUser.is_verified) {
+        // Check existing user
+        const existingUser = await manager.findOne(User, { where: { email } });
+
+        if (existingUser) {
+          if (existingUser.is_verified) {
+            throw new ConflictException('Email already exists');
+          }
+          // Remove unverified user to allow re-registration
           await manager.delete(User, { id: existingUser.id });
         }
 
-        if (existingUser && existingUser.is_verified) {
-          throw new ConflictException('Email already exists');
-        }
-
+        // Create new user
         const user = manager.create(User, {
-          ...create_user_data,
-          email: create_user_data.email.toLowerCase(),
-          password: await hashPassword(create_user_data.password),
+          ...createUserDto,
+          email,
+          password: await hashPassword(createUserDto.password),
         });
         await manager.save(User, user);
+
+        // Create profile
         const profile = manager.create(UserProfile, {
-          ...profile_data,
-          user: user,
+          ...profileDto,
+          user,
         });
         await manager.save(UserProfile, profile);
+
+        // Create email authentication OTP
         const otp = generateRandomCode(4);
         const authentication = manager.create(UserAuthentication, {
-          user: user,
+          user,
           code: otp,
           expire_date: generateExpireDate(10),
           type: AuthenticationType.EMAIL,
         });
         await manager.save(UserAuthentication, authentication);
 
+        // Queue verification email
         await this.emailQueue.add('send_verification_email', {
           to: user.email,
           otp,
-          title: 'Verif your email',
+          title: 'Verify your email',
         });
+
         return {
-          message: 'A verification code sent to your email.',
+          message: 'A verification code has been sent to your email.',
           user_id: user.id,
         };
+      })
+      .catch((error) => {
+        throw new HttpException(
+          error.message || 'Failed to create user',
+          error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+        );
       });
-    } catch (error) {
-      // Fallback for unknown errors
-      throw new HttpException(
-        error.message || 'Failed to create user',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
   }
 
   async verifyUserEmail(

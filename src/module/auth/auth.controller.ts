@@ -22,10 +22,12 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('create_user')
-  createUser(@Body() user_profile_dto: CreateUserWithProfileDto) {
+  async createUser(@Body() user_profile_dto: CreateUserWithProfileDto) {
     const { user, profile } = splitUserProfile(user_profile_dto);
-
-    return this.authService.createUser(user, profile);
+    console.time('object');
+    const data = await this.authService.createUser(user, profile);
+    console.timeEnd('object');
+    return data;
   }
 
   @Patch('verify_email/:id')
