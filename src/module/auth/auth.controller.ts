@@ -22,9 +22,9 @@ export class AuthController {
   @Post('create_user')
   async createUser(@Body() user_profile_dto: CreateUserWithProfileDto) {
     const { user, profile } = splitUserProfile(user_profile_dto);
-    console.time('object');
+
     const data = await this.authService.createUser(user, profile);
-    console.timeEnd('object');
+
     return data;
   }
 

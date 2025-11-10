@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 
-export const hashPassword = async (plainPassword: string, saltRounds = 12) => {
+export const hashPassword = async (plainPassword: string, saltRounds = 8) => {
   if (typeof plainPassword !== 'string' || !plainPassword.trim()) {
     throw new Error('Password must be a non-empty string');
   }

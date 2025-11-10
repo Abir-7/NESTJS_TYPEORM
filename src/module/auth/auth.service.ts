@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
@@ -66,7 +65,6 @@ export class AuthService {
       .transaction(async (manager) => {
         const email = createUserDto.email.toLowerCase();
 
-        // Check existing user
         const existingUser = await manager.findOne(User, { where: { email } });
 
         if (existingUser) {
@@ -78,6 +76,7 @@ export class AuthService {
         }
 
         // Create new user
+
         const user = manager.create(User, {
           ...createUserDto,
           email,
@@ -86,6 +85,7 @@ export class AuthService {
         await manager.save(User, user);
 
         // Create profile
+
         const profile = manager.create(UserProfile, {
           ...profileDto,
           user,
@@ -94,6 +94,7 @@ export class AuthService {
 
         // Create email authentication OTP
         const otp = generateRandomCode(4);
+
         const authentication = manager.create(UserAuthentication, {
           user,
           code: otp,
@@ -218,6 +219,7 @@ export class AuthService {
         HttpStatus.UNAUTHORIZED,
       );
     }
+
     if (user_data.account_status !== AccountStatus.ACTIVE) {
       throw new HttpException(
         `Your account is ${user_data.account_status}`,
