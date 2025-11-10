@@ -6,13 +6,16 @@ import { ValidationPipe } from '@nestjs/common';
 
 import cookieParser from 'cookie-parser';
 import { ConfigService } from '@nestjs/config';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const configService = app.get(ConfigService);
 
+  const configService = app.get(ConfigService);
   app.use(cookieParser());
 
+  app.use(helmet());
+  app.enableCors();
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // removes unknown properties

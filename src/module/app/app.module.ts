@@ -9,6 +9,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { UserProfileModule } from '../user/user_profile/user_profile.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -23,6 +24,14 @@ import { join } from 'path';
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/',
+    }),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 60000,
+          limit: 2,
+        },
+      ],
     }),
   ],
   controllers: [AppController],
