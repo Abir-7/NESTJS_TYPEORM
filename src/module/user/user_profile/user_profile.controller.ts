@@ -28,7 +28,7 @@ import type { IAuthData } from '../../../types/auth/auth_data.interface';
 //import { deleteFile } from '../../../utils/helper/deleteDiskFile';
 //import { deleteFile } from '../../../utils/helper/deleteDiskFile';
 
-@Controller('user_profile')
+@Controller('user-profile')
 export class UserProfileController {
   constructor(
     private readonly userProfileService: UserProfileService,

@@ -42,7 +42,7 @@ export class AuthController {
     return this.authService.resend(user_id);
   }
 
-  @Patch('req_for_reset_password')
+  @Patch('req-for-reset-password')
   resetPasswordReset(@Body('user_email') user_email: string) {
     return this.authService.reqForgotPass(user_email);
   }
@@ -55,7 +55,7 @@ export class AuthController {
     return this.authService.verifyReset(user_id, code);
   }
 
-  @Patch('reset_password')
+  @Patch('reset-password')
   resetPassword(@Body() body: ResetPasswordDto) {
     const token = body.token;
     const user_id = body.user_id;
@@ -70,7 +70,7 @@ export class AuthController {
     });
   }
 
-  @Post('new_access_token')
+  @Post('new-access-token')
   async refreshAccessToken(
     @Req() req: Request,
     @Body() body: { refresh_token: string },
