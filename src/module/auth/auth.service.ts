@@ -441,7 +441,7 @@ export class AuthService {
         type: AuthenticationType.RESET_PASSWORD,
       });
       await manager.save(new_verification);
-      return { token: access_token };
+      return { token: access_token, user_id: user_id };
     });
   }
 

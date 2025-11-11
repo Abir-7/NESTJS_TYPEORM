@@ -4,7 +4,6 @@ import {
   Post,
   Body,
   Patch,
-  Param,
   Req,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -48,9 +47,9 @@ export class AuthController {
     return this.authService.reqForgotPass(user_email);
   }
 
-  @Patch('verify_reset_password/:user_id')
+  @Patch('verify-reset-password')
   verifyResetPasswordReq(
-    @Param('user_id') user_id: string,
+    @Body('user_id') user_id: string,
     @Body('code') code: string,
   ) {
     return this.authService.verifyReset(user_id, code);
