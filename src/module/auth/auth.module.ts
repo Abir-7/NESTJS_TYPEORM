@@ -11,16 +11,25 @@ import { DatabaseModule } from '../../database/database.module';
 import { UserAuthenticationModule } from '../user/user_authentication/user_authentication.module';
 
 import { QueueModule } from '../../lib/queue/queue.module';
+import { UserAuthenticationFailLog } from '../user/user_authentication_fail_log/entities/user_authentication_fail_log.entity';
+import { UserAuthenticationFailLogModule } from '../user/user_authentication_fail_log/user_authentication_fail_log.module';
+import { AuthUtils } from './auth.utils';
 
 @Module({
   imports: [
     QueueModule,
-    TypeOrmModule.forFeature([User, UserProfile, UserAuthentication]),
+    TypeOrmModule.forFeature([
+      User,
+      UserProfile,
+      UserAuthentication,
+      UserAuthenticationFailLog,
+    ]),
     UserModule,
     UserAuthenticationModule,
     DatabaseModule,
+    UserAuthenticationFailLogModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, AuthUtils],
 })
 export class AuthModule {}

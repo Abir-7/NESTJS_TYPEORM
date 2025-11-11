@@ -65,9 +65,9 @@ export class User {
   // })
   // profile: UserProfile;
 
-  @OneToOne(() => UserProfile, (profile) => profile.user)
+  @OneToOne(() => UserProfile, (profile) => profile.user, { cascade: true })
   profile: UserProfile;
-  @OneToMany(() => UserAuthentication, (auth) => auth.user)
+  @OneToMany(() => UserAuthentication, (auth) => auth.user, { cascade: true })
   authentications: UserAuthentication[];
 
   // Automatically set when the record is created

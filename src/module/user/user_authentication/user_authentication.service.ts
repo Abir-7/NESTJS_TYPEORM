@@ -8,8 +8,10 @@ import { Repository } from 'typeorm';
 
 @Injectable()
 export class UserAuthenticationService {
-  @InjectRepository(UserAuthentication)
-  private readonly userAuthRepo: Repository<UserAuthentication>;
+  constructor(
+    @InjectRepository(UserAuthentication)
+    private readonly userAuthRepo: Repository<UserAuthentication>,
+  ) {}
   async create_new(
     user_id: string,
     code: string,
@@ -24,18 +26,20 @@ export class UserAuthenticationService {
     });
     return await this.userAuthRepo.save(newAuth);
   }
-  async findOneWithIdAndCode(id: string, code: string) {
+  async findOneWithIdAndCode(user_id: string, code: string) {
     const user_authentication_data = await this.userAuthRepo.findOne({
-      where: { user: { id: id }, code },
+      where: { user: { id: user_id }, code },
       relations: ['user'],
     });
     return user_authentication_data;
   }
-  async findOneWithId(id: string) {
+  async findOneWithId(user_id: string) {
     const user_authentication_data = await this.userAuthRepo.findOne({
-      where: { user: { id: id } },
+      where: { user: { id: user_id } },
       order: { created_at: 'DESC' },
+      relations: ['user'],
     });
+
     return user_authentication_data;
   }
 }

@@ -10,6 +10,8 @@ import { UserProfileModule } from '../user/user_profile/user_profile.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
+import { AutoTaskModule } from '../auto/auto_task.module';
 
 @Module({
   imports: [
@@ -33,6 +35,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
         },
       ],
     }),
+    ScheduleModule.forRoot(),
+    AutoTaskModule,
   ],
   controllers: [AppController],
   providers: [AppService, ConfigService],

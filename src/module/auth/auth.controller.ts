@@ -19,7 +19,7 @@ import type { Request } from 'express';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('create_user')
+  @Post('create-user')
   async createUser(@Body() user_profile_dto: CreateUserWithProfileDto) {
     const { user, profile } = splitUserProfile(user_profile_dto);
 
@@ -28,8 +28,8 @@ export class AuthController {
     return data;
   }
 
-  @Patch('verify_email/:id')
-  verifyUserEmail(@Param('id') id: string, @Body('code') code: string) {
+  @Patch('verify-email')
+  verifyUserEmail(@Body('user_id') id: string, @Body('code') code: string) {
     return this.authService.verifyUserEmail(id, code);
   }
 
@@ -42,10 +42,12 @@ export class AuthController {
   resend(@Body('user_id') user_id: string) {
     return this.authService.resend(user_id);
   }
+
   @Patch('req_for_reset_password')
   resetPasswordReset(@Body('user_email') user_email: string) {
     return this.authService.reqForgotPass(user_email);
   }
+
   @Patch('verify_reset_password/:user_id')
   verifyResetPasswordReq(
     @Param('user_id') user_id: string,
@@ -53,15 +55,20 @@ export class AuthController {
   ) {
     return this.authService.verifyReset(user_id, code);
   }
+
   @Patch('reset_password')
-  resetPassword(@Req() req: Request, @Body() body: ResetPasswordDto) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader?.split(' ')[1] as string;
+  resetPassword(@Body() body: ResetPasswordDto) {
+    const token = body.token;
+    const user_id = body.user_id;
+    const new_password = body.new_password;
+    const confirm_password = body.confirm_password;
     if (!token) {
       throw new Error('No token provided');
     }
-
-    return this.authService.resetPassword(token, body);
+    return this.authService.resetPassword(token, user_id, {
+      new_password,
+      confirm_password,
+    });
   }
 
   @Post('new_access_token')

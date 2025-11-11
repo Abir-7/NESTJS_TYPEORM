@@ -7,7 +7,6 @@ import {
   ConflictException,
   HttpException,
   HttpStatus,
-  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -24,6 +23,7 @@ import {
 import { UserProfile } from '../user/user_profile/entities/user_profile.entity';
 import {
   AuthenticationType,
+  AuthStatus,
   UserAuthentication,
 } from '../user/user_authentication/entities/user_authentication.entity';
 import { generateRandomCode } from '../../utils/helper/generateRandomCode';
@@ -46,17 +46,24 @@ import {
   IVerifyUserResponse,
 } from '../../types/response/auth_service_response.interface';
 import { JwtPayload } from '../../types/auth/decode_jwt.interface';
+import { UserAuthenticationFailLogService } from '../user/user_authentication_fail_log/user_authentication_fail_log.service';
+import { AuthenticationFailReason } from '../../common/const/user_authentication_failed.const';
+
+import { AuthUtils } from './auth.utils';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly userService: UserService,
-    private readonly userAuthentication: UserAuthenticationService,
     private jwtService: JwtService,
+    private readonly userAuthentication: UserAuthenticationService,
+    private readonly userAuthenticationFailedLogService: UserAuthenticationFailLogService,
     private configService: ConfigService,
+    private readonly authUtils: AuthUtils,
     @InjectQueue(queue_name.EMAIL) private readonly emailQueue: Queue,
   ) {}
+
   async createUser(
     createUserDto: CreateUserDto,
     profileDto: CreateUserProfileDto,
@@ -124,27 +131,44 @@ export class AuthService {
   }
 
   async verifyUserEmail(
-    id: string,
+    user_id: string,
     code: string,
   ): Promise<IVerifyUserResponse> {
-    const user_auth_data = await this.userAuthentication.findOneWithIdAndCode(
-      id,
-      code,
-    );
+    const user_auth_data = await this.userAuthentication.findOneWithId(user_id);
 
     if (!user_auth_data) {
-      throw new HttpException('Code not matched.', HttpStatus.NOT_FOUND);
+      throw new HttpException('User not found.', HttpStatus.NOT_FOUND);
     }
 
-    if (user_auth_data?.is_success) {
-      throw new HttpException(
-        'This code is already used',
-        HttpStatus.BAD_REQUEST,
-      );
+    if (user_auth_data?.status === AuthStatus.VERIFIED) {
+      console.log('1');
+      await this.authUtils.logAndThrow({
+        reason: AuthenticationFailReason.ALREADY_VERIFIED,
+        user_id,
+        user_auth_id: user_auth_data.id,
+        code,
+      });
+    }
+
+    if (user_auth_data.code !== code) {
+      console.log('2');
+      await this.authUtils.logAndThrow({
+        reason: AuthenticationFailReason.NOT_MATCHED,
+        user_id,
+        user_auth_id: user_auth_data.id,
+        code,
+      });
     }
 
     if (isExpired(user_auth_data.expire_date)) {
-      throw new HttpException('This code is expired', HttpStatus.BAD_REQUEST);
+      console.log('3');
+      await this.authUtils.logAndThrow({
+        reason: AuthenticationFailReason.NOT_MATCHED,
+        user_id,
+        type: 'EXPIRED',
+        user_auth_id: user_auth_data.id,
+        code,
+      });
     }
 
     const payload: {
@@ -175,7 +199,7 @@ export class AuthService {
     await this.dataSource.transaction(async (manager) => {
       const result = await manager.update(
         User,
-        { id },
+        { id: user_id },
         { is_verified: true, account_status: AccountStatus.ACTIVE },
       );
 
@@ -184,13 +208,14 @@ export class AuthService {
       }
       const update_user_auth_data = await manager.update(
         UserAuthentication,
-        { user: { id: id }, code: code },
-        { is_success: true },
+        { user: { id: user_id }, code: code },
+        { status: AuthStatus.VERIFIED, verified_at: new Date() },
       );
 
       if (update_user_auth_data.affected === 0) {
         throw new HttpException('No user authentication record found', 404);
       }
+
       return result;
     });
 
@@ -262,16 +287,23 @@ export class AuthService {
 
   async resend(user_id: string): Promise<IMessageResponse> {
     const user_auth_data = await this.userAuthentication.findOneWithId(user_id);
+    if (!user_auth_data) {
+      throw new HttpException('No user found', HttpStatus.NOT_FOUND);
+    }
     const user_data = await this.userService.findOneById(user_id);
+
+    if (user_auth_data.code && user_auth_data.status === AuthStatus.VERIFIED) {
+      throw new HttpException(
+        'No previous valid request found',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
     if (
       user_auth_data &&
       !isExpired(user_auth_data?.expire_date) &&
-      user_auth_data.is_success == false
+      user_auth_data.status === AuthStatus.PENDING
     ) {
-      throw new HttpException(
-        'You can resend code after some time',
-        HttpStatus.BAD_REQUEST,
-      );
+      await this.authUtils.makePriviousCodeCanceled(user_auth_data.id);
     }
 
     const otp = generateRandomCode(4);
@@ -280,7 +312,7 @@ export class AuthService {
       user_id,
       otp,
       generateExpireDate(10),
-      AuthenticationType.RESEND,
+      user_auth_data.type,
     );
 
     await this.emailQueue.add('send_verification_email', {
@@ -332,24 +364,38 @@ export class AuthService {
   }
 
   async verifyReset(user_id: string, code: string): Promise<ITokenResponse> {
-    const user_auth_data = await this.userAuthentication.findOneWithIdAndCode(
-      user_id,
-      code,
-    );
+    const user_auth_data = await this.userAuthentication.findOneWithId(user_id);
 
     if (!user_auth_data) {
-      throw new HttpException('Code not matched.', HttpStatus.NOT_FOUND);
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
-    if (user_auth_data?.is_success) {
-      throw new HttpException(
-        'This code is already used',
-        HttpStatus.BAD_REQUEST,
-      );
+    if (user_auth_data.code !== code) {
+      await this.authUtils.logAndThrow({
+        code,
+        reason: AuthenticationFailReason.NOT_MATCHED,
+        user_auth_id: user_auth_data.id,
+        user_id,
+      });
+    }
+
+    if (user_auth_data?.status === AuthStatus.VERIFIED) {
+      await this.authUtils.logAndThrow({
+        code: code,
+        reason: AuthenticationFailReason.ALREADY_VERIFIED,
+        user_auth_id: user_auth_data.id,
+        user_id,
+      });
     }
 
     if (isExpired(user_auth_data.expire_date)) {
-      throw new HttpException('This code is expired', HttpStatus.BAD_REQUEST);
+      await this.authUtils.logAndThrow({
+        code,
+        reason: AuthenticationFailReason.EXPIRED,
+        user_auth_id: user_auth_data.id,
+        user_id,
+        type: 'EXPIRED',
+      });
     }
     const user_data = await this.userService.findOneById(user_id);
 
@@ -366,7 +412,7 @@ export class AuthService {
       const update_user_auth_data = await manager.update(
         UserAuthentication,
         { user: { id: user_id }, code: code },
-        { is_success: true },
+        { status: AuthStatus.VERIFIED, verified_at: new Date() },
       );
 
       if (update_user_auth_data.affected === 0) {
@@ -388,25 +434,57 @@ export class AuthService {
         secret: this.configService.getOrThrow('JWT_ACCESS_SECRET'),
       });
 
+      const new_verification = manager.create(UserAuthentication, {
+        token: access_token,
+        user: { id: user_id },
+        expire_date: generateExpireDate(10),
+        type: AuthenticationType.RESET_PASSWORD,
+      });
+      await manager.save(new_verification);
       return { token: access_token };
     });
   }
+
   async resetPassword(
     token: string,
+    user_id: string,
     {
       new_password,
       confirm_password,
     }: { new_password: string; confirm_password: string },
   ): Promise<IMessageResponse> {
-    const decoded = await this.jwtService.verify(token, {
-      secret: this.configService.getOrThrow('JWT_ACCESS_SECRET'),
-    });
+    const user_auth_data = await this.userAuthentication.findOneWithId(user_id);
 
-    if (!decoded?.user_id) {
-      throw new HttpException(
-        'Invalid or expired token',
-        HttpStatus.UNAUTHORIZED,
-      );
+    if (!user_auth_data) {
+      throw new HttpException('Code not matched.', HttpStatus.NOT_FOUND);
+    }
+
+    if (user_auth_data.token !== token) {
+      await this.authUtils.logAndThrow({
+        reason: AuthenticationFailReason.INVALID_TOKEN,
+        user_id,
+        user_auth_id: user_auth_data.id,
+        token: token,
+      });
+    }
+
+    if (user_auth_data?.status === AuthStatus.VERIFIED) {
+      await this.authUtils.logAndThrow({
+        reason: AuthenticationFailReason.ALREADY_VERIFIED,
+        user_id,
+        user_auth_id: user_auth_data.id,
+        token: token,
+      });
+    }
+
+    if (isExpired(user_auth_data.expire_date)) {
+      await this.authUtils.logAndThrow({
+        reason: AuthenticationFailReason.EXPIRED,
+        user_id,
+        user_auth_id: user_auth_data.id,
+        token: token,
+        type: 'EXPIRED',
+      });
     }
 
     if (!new_password || !confirm_password) {
@@ -417,7 +495,7 @@ export class AuthService {
       throw new BadRequestException('Passwords do not match');
     }
 
-    const user = await this.userService.findOneById(decoded.user_id);
+    const user = await this.userService.findOneById(user_id);
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -426,13 +504,12 @@ export class AuthService {
       throw new BadRequestException('Password reset is not allowed');
     }
 
-    // 4️⃣ Hash and update password
     const hashedPassword = await hashPassword(new_password);
 
     await this.dataSource.transaction(async (manager) => {
       const result = await manager.update(
         User,
-        { id: decoded.user_id },
+        { id: user_id },
         { password: hashedPassword, need_to_reset_password: false },
       );
 
@@ -451,7 +528,6 @@ export class AuthService {
     refresh_token: string,
   ): Promise<IAccessTokenResponse> {
     try {
-      // Verify refresh token validity
       const payload = await this.jwtService.verify(refresh_token, {
         secret: this.configService.getOrThrow('JWT_REFRESH_SECRET'),
       });
