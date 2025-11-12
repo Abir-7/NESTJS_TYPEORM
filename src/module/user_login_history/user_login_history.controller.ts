@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param } from '@nestjs/common';
 import { UserLoginHistoryService } from './user_login_history.service';
 import { CreateUserLoginHistoryDto } from './dto/create-user_login_history.dto';
 
@@ -13,8 +13,9 @@ export class UserLoginHistoryController {
     return this.userLoginHistoryService.create(createUserLoginHistoryDto);
   }
 
-  @Get()
-  findAll() {
+  @Get('/:user_id')
+  findAll(@Param('user_id') user_id: string) {
+    console.log(user_id);
     return this.userLoginHistoryService.findAll();
   }
 }
