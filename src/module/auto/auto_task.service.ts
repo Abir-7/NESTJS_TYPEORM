@@ -1,11 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
+
+import { Repository } from 'typeorm';
 import {
   AuthStatus,
   UserAuthentication,
-} from '../user/user_authentication/entities/user_authentication.entity';
-import { Repository } from 'typeorm';
+} from '../user_authentication/entities/user_authentication.entity';
 
 @Injectable()
 export class AutoTaskService {

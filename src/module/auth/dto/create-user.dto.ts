@@ -7,7 +7,7 @@ import {
   IsOptional,
   MinLength,
 } from 'class-validator';
-import { UserRole } from '../../user/user/entities/user.entity';
+import { UserRole } from '../../user/entities/user.entity';
 
 export class CreateUserDto {
   @IsEmail({}, { message: 'Email must be valid' })

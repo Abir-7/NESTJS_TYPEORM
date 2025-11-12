@@ -10,6 +10,9 @@ import {
 import { UserProfile } from '../../user_profile/entities/user_profile.entity';
 import { UserAuthentication } from '../../user_authentication/entities/user_authentication.entity';
 
+import { UserLoginHistory } from '../../user_login_history/entities/user_login_history.entity';
+import { UserAuthenticationFailLog } from '../../user_authentication_fail_log/entities/user_authentication_fail_log.entity';
+
 export enum AccountStatus {
   DELETED = 'deleted',
   PENDING_VERIFICATION = 'pending_verification',
@@ -59,22 +62,25 @@ export class User {
   @Column({ default: false, name: 'need_to_reset_password' })
   need_to_reset_password: boolean;
 
-  // @OneToOne(() => UserProfile, (profile) => profile.user, {
-  //   cascade: true,
-  //   eager: true,
-  // })
-  // profile: UserProfile;
-
   @OneToOne(() => UserProfile, (profile) => profile.user, { cascade: true })
   profile: UserProfile;
+
   @OneToMany(() => UserAuthentication, (auth) => auth.user, { cascade: true })
   authentications: UserAuthentication[];
 
-  // Automatically set when the record is created
+  @OneToMany(() => UserLoginHistory, (loginHistory) => loginHistory.user, {
+    cascade: true,
+  })
+  loginHistories: UserLoginHistory[];
+
+  @OneToMany(() => UserAuthenticationFailLog, (failLog) => failLog.user, {
+    cascade: true,
+  })
+  authenticationFailLogs: UserAuthenticationFailLog[];
+
   @CreateDateColumn({ name: 'created_at' })
   created_at: Date;
 
-  // Automatically set when the record is updated
   @UpdateDateColumn({ name: 'updated_at' })
   updated_at: Date;
 }

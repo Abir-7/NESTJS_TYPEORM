@@ -1,4 +1,4 @@
-import { UserRole } from '../../module/user/user/entities/user.entity';
+import { UserRole } from '../../module/user/entities/user.entity';
 
 export interface IAuthData {
   user_id: string;

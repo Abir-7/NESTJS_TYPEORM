@@ -14,22 +14,10 @@ import {
 
 import { DataSource } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
-import { CreateUserProfileDto } from '../user/user_profile/dto/create-user_profile.dto';
-import {
-  AccountStatus,
-  User,
-  UserRole,
-} from '../user/user/entities/user.entity';
-import { UserProfile } from '../user/user_profile/entities/user_profile.entity';
-import {
-  AuthenticationType,
-  AuthStatus,
-  UserAuthentication,
-} from '../user/user_authentication/entities/user_authentication.entity';
+
 import { generateRandomCode } from '../../utils/helper/generateRandomCode';
 import { generateExpireDate } from '../../utils/helper/generateExpireDate';
-import { UserService } from '../user/user/user.service';
-import { UserAuthenticationService } from '../user/user_authentication/user_authentication.service';
+
 import { isExpired } from '../../utils/helper/checkExpireDate';
 import { hashPassword, verifyPassword } from '../../utils/helper/bcryptJs';
 import { JwtService } from '@nestjs/jwt';
@@ -46,10 +34,23 @@ import {
   IVerifyUserResponse,
 } from '../../types/response/auth_service_response.interface';
 import { JwtPayload } from '../../types/auth/decode_jwt.interface';
-import { UserAuthenticationFailLogService } from '../user/user_authentication_fail_log/user_authentication_fail_log.service';
+
 import { AuthenticationFailReason } from '../../common/const/user_authentication_failed.const';
 
 import { AuthUtils } from './auth.utils';
+import { UserService } from '../user/user.service';
+import { UserAuthenticationService } from '../user_authentication/user_authentication.service';
+import { UserAuthenticationFailLogService } from '../user_authentication_fail_log/user_authentication_fail_log.service';
+import { CreateUserProfileDto } from '../user_profile/dto/create-user_profile.dto';
+import { AccountStatus, User, UserRole } from '../user/entities/user.entity';
+import { UserProfile } from '../user_profile/entities/user_profile.entity';
+import {
+  AuthenticationType,
+  AuthStatus,
+  UserAuthentication,
+} from '../user_authentication/entities/user_authentication.entity';
+import { UserLoginHistoryService } from '../user_login_history/user_login_history.service';
+import { LOGIN_NOTE } from '../../common/const/login_history_note.const';
 
 @Injectable()
 export class AuthService {
@@ -61,6 +62,7 @@ export class AuthService {
     private readonly userAuthenticationFailedLogService: UserAuthenticationFailLogService,
     private configService: ConfigService,
     private readonly authUtils: AuthUtils,
+
     @InjectQueue(queue_name.EMAIL) private readonly emailQueue: Queue,
   ) {}
 
@@ -239,6 +241,10 @@ export class AuthService {
     }
 
     if (!(await verifyPassword(password, user_data.password))) {
+      await this.authUtils.savelogLoginHistory(
+        { is_success: false, user: { id: user_data.id } },
+        'password',
+      );
       throw new HttpException(
         'Please check your password.',
         HttpStatus.UNAUTHORIZED,
@@ -246,6 +252,10 @@ export class AuthService {
     }
 
     if (user_data.account_status !== AccountStatus.ACTIVE) {
+      await this.authUtils.savelogLoginHistory(
+        { is_success: false, user: { id: user_data.id } },
+        user_data.account_status,
+      );
       throw new HttpException(
         `Your account is ${user_data.account_status}`,
         HttpStatus.BAD_REQUEST,

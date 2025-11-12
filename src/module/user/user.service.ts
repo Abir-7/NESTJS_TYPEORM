@@ -5,7 +5,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
-import { IMessageResponse } from '../../../types/response/auth_service_response.interface';
+import { IMessageResponse } from '../../types/response/auth_service_response.interface';
 
 @Injectable()
 export class UserService {

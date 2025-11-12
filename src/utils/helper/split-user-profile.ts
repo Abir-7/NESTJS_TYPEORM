@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { CreateUserDto } from '../../module/auth/dto/create-user.dto';
-import { CreateUserProfileDto } from '../../module/user/user_profile/dto/create-user_profile.dto';
+import { CreateUserProfileDto } from '../../module/user_profile/dto/create-user_profile.dto';
 
 interface SplitResult {
   user: CreateUserDto;

@@ -14,17 +14,16 @@ import { UserProfileService } from './user_profile.service';
 import { UpdateUserProfileDto } from './dto/update-user_profile.dto';
 import { ParseUUIDPipe } from '@nestjs/common';
 
-import { MulterModule } from '../../../middleware/multer.module';
-
-import { formatFilePath } from '../../../utils/helper/formatFilePath';
-import { ParseJsonPipe } from '../../../common/pipe/parse_data.pipe';
-import { AuthGuard } from '../../../middleware/auth.guard';
-import { RolesGuard } from '../../../middleware/roles.guard';
-import { Roles } from '../../../common/decorators/roles.decorators';
 import { UserRole } from '../user/entities/user.entity';
+import { AuthGuard } from '../../middleware/auth.guard';
+import { RolesGuard } from '../../middleware/roles.guard';
+import { MulterModule } from '../../middleware/multer.module';
+import { Roles } from '../../common/decorators/roles.decorators';
+import { ParseJsonPipe } from '../../common/pipe/parse_data.pipe';
+import { User } from '../../common/decorators/user.decorator';
+import type { IAuthData } from '../../types/auth/auth_data.interface';
+import { formatFilePath } from '../../utils/helper/formatFilePath';
 
-import { User } from '../../../common/decorators/user.decorator';
-import type { IAuthData } from '../../../types/auth/auth_data.interface';
 //import { deleteFile } from '../../../utils/helper/deleteDiskFile';
 //import { deleteFile } from '../../../utils/helper/deleteDiskFile';
 

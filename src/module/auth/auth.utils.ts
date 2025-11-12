@@ -1,11 +1,15 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { UserAuthenticationFailLog } from '../user/user_authentication_fail_log/entities/user_authentication_fail_log.entity';
+import { UserAuthenticationFailLog } from '../user_authentication_fail_log/entities/user_authentication_fail_log.entity';
 import {
   AuthStatus,
   UserAuthentication,
-} from '../user/user_authentication/entities/user_authentication.entity';
+} from '../user_authentication/entities/user_authentication.entity';
+import { LoginNoteType } from '../../types/auth/auth_helper.interface';
+import { LOGIN_NOTE } from '../../common/const/login_history_note.const';
+import { UserLoginHistoryService } from '../user_login_history/user_login_history.service';
+import { CreateUserLoginHistoryDto } from '../user_login_history/dto/create-user_login_history.dto';
 
 interface LogAndThrowOptions {
   user_id: string;
@@ -26,6 +30,7 @@ export class AuthUtils {
     private readonly failLogRepo: Repository<UserAuthenticationFailLog>,
     @InjectRepository(UserAuthentication)
     private readonly authRepository: Repository<UserAuthentication>,
+    private readonly loginHistoryService: UserLoginHistoryService,
   ) {}
 
   async logAndThrow(options: LogAndThrowOptions) {
@@ -60,5 +65,27 @@ export class AuthUtils {
       { id: user_auth_id },
       { status: AuthStatus.CANCELLED },
     );
+  }
+
+  async savelogLoginHistory(
+    data: CreateUserLoginHistoryDto,
+    type: LoginNoteType,
+  ) {
+    const typeToNoteMap: Record<LoginNoteType, string> = {
+      success: LOGIN_NOTE.SUCCESS,
+      password: LOGIN_NOTE.INVALID_PASSWORD,
+      deleted: LOGIN_NOTE.ACCOUNT_DELETED,
+      pending_verification: LOGIN_NOTE.NOT_VERIFIED,
+      blocked: LOGIN_NOTE.ACCOUNT_BLOCKED,
+      disabled: LOGIN_NOTE.ACCOUNT_DISABLED,
+      too_many_attempts: LOGIN_NOTE.TOO_MANY_ATTEMPTS,
+    };
+
+    const note = typeToNoteMap[type] || LOGIN_NOTE.UNKNOWN_ERROR;
+
+    return await this.loginHistoryService.create({
+      ...data,
+      note,
+    });
   }
 }

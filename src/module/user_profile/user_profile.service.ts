@@ -5,8 +5,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserProfile } from './entities/user_profile.entity';
 
-import { deleteFile } from '../../../utils/helper/deleteDiskFile';
 import { UpdateUserProfileDto } from './dto/update-user_profile.dto';
+import { deleteFile } from '../../utils/helper/deleteDiskFile';
 
 @Injectable()
 export class UserProfileService {
